@@ -1,0 +1,121 @@
+﻿<?xml version="1.0"?>
+<doc>
+<assembly>
+<name>
+Utils
+</name>
+</assembly>
+<members>
+<member name="T:Utils.My.Resources.Resources">
+<summary>
+  Uma classe de recurso de tipo de alta segurança, para pesquisar cadeias de caracteres localizadas etc.
+</summary>
+</member>
+<member name="P:Utils.My.Resources.Resources.ResourceManager">
+<summary>
+  Retorna a instância de ResourceManager armazenada em cache usada por essa classe.
+</summary>
+</member>
+<member name="P:Utils.My.Resources.Resources.Culture">
+<summary>
+  Substitui a propriedade CurrentUICulture do thread atual para todas as
+  pesquisas de recursos que usam essa classe de recurso de tipo de alta segurança.
+</summary>
+</member>
+<member name="M:Utils.Conexao.retornaVazioParaValorNulo(System.Object,System.Object)">
+ <summary>
+Função para retornar um valor vazio ao invés de nulo.
+para utilização nas classes DTO
+Para setar campo data como null/nothing:
+campoDeData = objCon.retornaVazioParaValorNulo(drRow("data_inicial_viagem"), Nothing)
+ </summary>
+ <param name="valor"></param>
+ <param name="valorRetorno"></param>
+ <returns></returns>
+</member>
+<member name="M:Utils.Conexao.retornaNuloParaVazio(System.Object,System.Object)">
+ <summary>
+ Transformar vazio em nulo ou na opção de retorno desejada
+ campoDeData = objCon.retornaNuloParaVazio(drRow("data_inicial_viagem"))
+ campoDeData = objCon.retornaNuloParaVazio(drRow("data_inicial_viagem"), "O QUE QUISER")
+ </summary>
+ <param name="valor"></param>
+ <param name="valorRetorno"></param>
+ <returns></returns>
+</member>
+<member name="M:Utils.Uteis.formataStringDataDDMMYYYY(System.String)">
+ <summary>
+ Formata uma string de data no formato Date
+ Data criação/modificação: 17/04/2019
+ Formato de entrada: DD/MM/YYYY ou DDMMYYYY
+ </summary>  
+</member>
+<member name="M:Utils.Uteis.formataStringDataDDMMYY(System.String)">
+ <summary>
+ Formata uma string de data no formato Date
+ Data criação/modificação: 02/01/2018
+ Formato de entrada: 11/04/19
+ </summary>  
+</member>
+<member name="M:Utils.Uteis.formataStringHoraHHMMSS(System.String)">
+ <summary>
+ Formata uma string de hora no formato Datetime
+ Data criação/modificação: 02/01/2018
+ </summary>  
+</member>
+<member name="M:Utils.Uteis.retornaLimiteCaracterString(System.String,System.Int32)">
+ <summary>
+ Retorna um limite de caracteres especificos de uma string
+ Data criação/modificação: 02/01/2018
+ </summary>  
+</member>
+<member name="M:Utils.Uteis.autenticacaoActiveDirectory(System.String,System.String,System.Boolean,System.String,System.String@,System.Boolean)">
+ <summary>
+ Autenticação via Active Directory
+ </summary>
+ <param name="User">usuario do dominio</param>
+ <param name="Senha">senha do dominio</param>
+ <param name="ValidaNovelRede">valida o usuário informado com usuário logado no computador, default = true</param>
+ <param name="IpServer">ip do dominio, opcional ou captura automatica da propria rede, default = auto</param>
+ <returns>Boolean</returns>
+</member>
+<member name="M:Utils.Uteis.TextBoxMoeda(System.Windows.Forms.TextBox)">
+ <summary>
+ Método que formata para moeda o conteúdo de um TextBox
+ Para fazer uma chamada ao método TextBoxMoeda da classe Utils, 
+ adiciona a linha abaixo no evento TextChanged do controle TextBox.
+ </summary>
+ <param name="txt">Controle a ser formatado</param>
+</member>
+<member name="M:Utils.Uteis.UnixToTime(System.String)">
+ Converter DataJson em Datetime
+</member>
+<member name="M:Utils.Tridirecional.validaTelefone(System.String)">
+ <summary>
+ Consistencia de nroTelefone
+ </summary>
+</member>
+<member name="M:Utils.Tridirecional.criaObjTridirecional(System.String,System.String[])">
+ <summary>
+ Cria um objeto do tipo Tridirecional
+ utilizado para definir ao robo qual rumo tomar
+ </summary>
+</member>
+<member name="M:Utils.Tridirecional.validacaoTridirecional(System.Boolean,System.String[],System.String[],System.Boolean,System.Boolean)">
+ <summary>
+ Validação Tridirecional SMS/URA/FILACONTATTO/CASOSESPECIAIS
+ retorna um objeto do tipo Tridirecional
+ </summary>
+</member>
+<member name="M:Utils.Tridirecional.retornaDD(System.String)">
+ <summary>
+ Retorna somente o DD de um numero telefone completo
+ </summary>
+</member>
+<member name="M:Utils.Tridirecional.retornaTel(System.String)">
+ <summary>
+ Retorna somente o Telefone de um numero de telefone completo
+ </summary>
+</member>
+</members>
+</doc>

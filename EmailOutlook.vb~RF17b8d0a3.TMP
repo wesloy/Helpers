@@ -1,0 +1,203 @@
+﻿Imports Microsoft.Office.Interop
+Imports System.Runtime.InteropServices
+Imports System.Reflection
+Public Class EmailOutlook
+
+    Dim _data As DateTime
+    Dim _remetente As String
+    Dim _assunto As String
+    Dim _corpoEmail As String
+    Dim _anexo As New List(Of String)
+
+
+    Public Property Data As Date
+        Get
+            Return _data
+        End Get
+        Set(value As Date)
+            _data = value
+        End Set
+    End Property
+
+    Public Property Remetente As String
+        Get
+            Return _remetente
+        End Get
+        Set(value As String)
+            _remetente = value
+        End Set
+    End Property
+
+    Public Property Assunto As String
+        Get
+            Return _assunto
+        End Get
+        Set(value As String)
+            _assunto = value
+        End Set
+    End Property
+
+    Public Property CorpoEmail As String
+        Get
+            Return _corpoEmail
+        End Get
+        Set(value As String)
+            _corpoEmail = value
+        End Set
+    End Property
+
+    Public Property Anexo As List(Of String)
+        Get
+            Return _anexo
+        End Get
+        Set(value As List(Of String))
+            _anexo = value
+        End Set
+    End Property
+
+    Public Function Enviar(ByVal remetente As String,
+                           ByVal copiaPara As String,
+                           ByVal destinatario As String,
+                           ByVal assunto As String,
+                           ByVal anexo As String,
+                           ByVal body As String,
+                           Optional ByVal bodyHtml As Boolean = False) As Boolean
+        Try
+            IniciaProcessoOutlook()
+            Dim oApp As New Outlook.Application
+            Dim oMail As Outlook.MailItem
+            ' Create a new AppointmentItem.   
+            oMail = oApp.CreateItem(Outlook.OlItemType.olMailItem)
+            oMail.UnRead = True
+            oMail.SentOnBehalfOfName = remetente
+            oMail.To = destinatario
+            oMail.CC = copiaPara
+            oMail.Subject = assunto
+            If Not String.IsNullOrEmpty(anexo) Then
+                oMail.Attachments.Add(anexo) 'p/anexos
+            End If
+            If bodyHtml Then
+                ''HTML BODY
+                oMail.BodyFormat = Outlook.OlBodyFormat.olFormatHTML
+                oMail.HTMLBody = body.ToString
+                'oMail.HTMLBody = "<html><head><title>Testing</title></head>"
+                'oMail.HTMLBody += "<body><table rules=""none"" border=""1"" frame=""box""><tr>" &
+                '                    "<td><Label id=""verify"">Test Text:</Label></td><td width=""233"">" &
+                '                    "<INPUT id=""passedText"" type=""text"" maxLength=""25"" size=""82"" ></td>" &
+                '                    "</tr></table></body></html>"
+            Else
+                oMail.Body = body
+            End If
+            'para enviar o email
+            oMail.Send()
+            'para visualizar o email antes de enviar
+            'oMail.Display()
+            ' Clean up.
+            oApp = Nothing
+            oMail = Nothing
+            'hlp.killProcessoName("outlook")
+            'System.Threading.Thread.Sleep(500)
+            Return True
+            Exit Function
+        Catch ex As Exception
+            Return False
+            'MsgBox "Não foi possível montar e enviar e-mail!" & Chr(13) & Err.Description, vbCritical, "Erro!"
+        End Try
+    End Function
+    Public Function Ler(ByVal conta As String,
+                        ByVal pasta_entrada As String,
+                        ByVal pasta_backup As String,
+                        Optional pathAnexo As String = "") As Boolean
+        Try
+            IniciaProcessoOutlook()
+            Dim oApp As New Outlook.Application
+            Dim newMail As Outlook.MailItem
+            Dim cont As Long = 0
+            Dim totalEmail As Long = 0
+            Dim nomeAnexo As String
+            Dim hlp As New Helpers
+
+            oApp = CreateObject("Outlook.Application")
+            'Cria a instancia Namespace do outlook
+            Dim oNS As Outlook.NameSpace = oApp.GetNamespace("mapi")
+            'Captura as mensagem de uma conta/pasta especifica dentro do outlook
+            'Dim oInbox As Outlook.MAPIFolder = tempApp.Folders(conta).Folders(pasta_entrada).Folders(subPastas)
+            Dim oInbox As Outlook.MAPIFolder = oNS.Folders(conta).Folders(pasta_entrada)
+            Dim oItems As Outlook.Items = oInbox.Items
+            ' Filtra somente os e-mails não lidos
+            oItems = oItems.Restrict("[Unread] = true")
+            cont = oItems.Count
+            totalEmail = oItems.Count
+            For Each newMail In oItems
+                'Captura as informações do email
+                If newMail.UnRead Then
+                    '01 - Captura o email do remetente  
+                    If newMail.SenderEmailType = "EX" Then
+                        Dim sender As Outlook.AddressEntry
+                        sender = oItems.Sender
+                        If Not sender Is Nothing Then
+                            'Now we have an AddressEntry representing the Sender
+                            If sender.AddressEntryUserType = Outlook.OlAddressEntryUserType.olExchangeUserAddressEntry Or sender.AddressEntryUserType = Outlook.OlAddressEntryUserType.olExchangeRemoteUserAddressEntry Then
+                                'Use the ExchangeUser object PrimarySMTPAddress
+                                Dim exchUser As Outlook.ExchangeUser
+                                exchUser = sender.GetExchangeUser()
+                                If Not exchUser Is Nothing Then
+                                    Remetente = exchUser.PrimarySmtpAddress
+                                Else
+                                    Remetente = vbNullString
+                                End If
+                            Else
+                                Remetente = vbNullString 'sender.PropertyAccessor.GetProperty("PR_SMTP_ADDRESS")
+                            End If
+                        Else
+                            Remetente = vbNullString
+                        End If
+                    Else
+                        Remetente = newMail.SenderEmailAddress
+                    End If
+                    '02 - Captura o assunto
+                    Dim assunto As String
+                    If IsNothing(newMail.Subject) = False Then
+                        assunto = newMail.Subject
+                    Else
+                        assunto = ""
+                    End If
+                    '03 - Outras informações
+                    Me.Data = newMail.ReceivedTime
+                    CorpoEmail = newMail.Body.ToString
+                    '04 - Salvo os anexos 
+                    If (newMail.Attachments.Count > 0) Then
+                        For Each newAttchments In newMail.Attachments
+                            nomeAnexo = hlp.GenerateGUID() & " " & newAttchments.FileName.ToString()
+                            newAttchments.SaveAsFile(pathAnexo & nomeAnexo)
+                            Me.Anexo.Add(pathAnexo & nomeAnexo)
+                        Next
+                    End If
+                    '05 - Marcar como lido
+                    '06 - Mover para outra pasta
+
+                End If
+            Next
+            'hlp.killProcessoName("OUTLOOK.EXE")
+            oItems = Nothing
+            oInbox = Nothing
+            oApp = Nothing
+            Return True
+        Catch ex As Exception
+            Return False
+        End Try
+    End Function
+    Public Sub IniciaProcessoOutlook()
+        Try
+            If Process.GetProcessesByName("outlook").Count = 0 Then
+                Dim myProcess As New Process()
+                myProcess = System.Diagnostics.Process.Start("outlook")
+            End If
+        Catch ex As Exception
+            'MsgBox(hlp.getCurrentMethodName & " " & ex.Message, vbCritical, TITULO_ALERTA)
+        End Try
+    End Sub
+End Class
+
+
+

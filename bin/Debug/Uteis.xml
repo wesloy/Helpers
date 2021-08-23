@@ -1,0 +1,94 @@
+﻿<?xml version="1.0"?>
+<doc>
+<assembly>
+<name>
+Uteis
+</name>
+</assembly>
+<members>
+<member name="T:Uteis.My.Resources.Resources">
+<summary>
+  Uma classe de recurso de tipo de alta segurança, para pesquisar cadeias de caracteres localizadas etc.
+</summary>
+</member>
+<member name="P:Uteis.My.Resources.Resources.ResourceManager">
+<summary>
+  Retorna a instância de ResourceManager armazenada em cache usada por essa classe.
+</summary>
+</member>
+<member name="P:Uteis.My.Resources.Resources.Culture">
+<summary>
+  Substitui a propriedade CurrentUICulture do thread atual para todas as
+  pesquisas de recursos que usam essa classe de recurso de tipo de alta segurança.
+</summary>
+</member>
+<member name="M:Uteis.Conexao.retornaVazioParaValorNulo(System.Object,System.Object)">
+ <summary>
+Função para retornar um valor vazio ao invés de nulo.
+para utilização nas classes DTO
+Para setar campo data como null/nothing:
+campoDeData = objCon.retornaVazioParaValorNulo(drRow("data_inicial_viagem"), Nothing)
+ </summary>
+ <param name="valor"></param>
+ <param name="valorRetorno"></param>
+ <returns></returns>
+</member>
+<member name="M:Uteis.Conexao.retornaNuloParaVazio(System.Object,System.Object)">
+ <summary>
+ Transformar vazio em nulo ou na opção de retorno desejada
+ campoDeData = objCon.retornaNuloParaVazio(drRow("data_inicial_viagem"))
+ campoDeData = objCon.retornaNuloParaVazio(drRow("data_inicial_viagem"), "O QUE QUISER")
+ </summary>
+ <param name="valor"></param>
+ <param name="valorRetorno"></param>
+ <returns></returns>
+</member>
+<member name="M:Uteis.Helpers.formataStringDataDDMMYYYY(System.String)">
+ <summary>
+ Formata uma string de data no formato Date
+ Data criação/modificação: 17/04/2019
+ Formato de entrada: DD/MM/YYYY ou DDMMYYYY
+ </summary>  
+</member>
+<member name="M:Uteis.Helpers.formataStringDataDDMMYY(System.String)">
+ <summary>
+ Formata uma string de data no formato Date
+ Data criação/modificação: 02/01/2018
+ Formato de entrada: 11/04/19
+ </summary>  
+</member>
+<member name="M:Uteis.Helpers.formataStringHoraHHMMSS(System.String)">
+ <summary>
+ Formata uma string de hora no formato Datetime
+ Data criação/modificação: 02/01/2018
+ </summary>  
+</member>
+<member name="M:Uteis.Helpers.retornaLimiteCaracterString(System.String,System.Int32)">
+ <summary>
+ Retorna um limite de caracteres especificos de uma string
+ Data criação/modificação: 02/01/2018
+ </summary>  
+</member>
+<member name="M:Uteis.Helpers.autenticacaoActiveDirectory(System.String,System.String,System.Boolean,System.String,System.String@,System.Boolean)">
+ <summary>
+ Autenticação via Active Directory
+ </summary>
+ <param name="User">usuario do dominio</param>
+ <param name="Senha">senha do dominio</param>
+ <param name="ValidaNovelRede">valida o usuário informado com usuário logado no computador, default = true</param>
+ <param name="IpServer">ip do dominio, opcional ou captura automatica da propria rede, default = auto</param>
+ <returns>Boolean</returns>
+</member>
+<member name="M:Uteis.Helpers.TextBoxMoeda(System.Windows.Forms.TextBox)">
+ <summary>
+ Método que formata para moeda o conteúdo de um TextBox
+ Para fazer uma chamada ao método TextBoxMoeda da classe Utils, 
+ adiciona a linha abaixo no evento TextChanged do controle TextBox.
+ </summary>
+ <param name="txt">Controle a ser formatado</param>
+</member>
+<member name="M:Uteis.Helpers.UnixToTime(System.String)">
+ Converter DataJson em Datetime
+</member>
+</members>
+</doc>

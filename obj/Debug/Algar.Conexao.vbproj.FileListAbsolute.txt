@@ -1,0 +1,13 @@
+C:\Users\rafaelsan\Documents\Projetos\Algar.Conexao\bin\Debug\Algar.Conexao.dll
+C:\Users\rafaelsan\Documents\Projetos\Algar.Conexao\bin\Debug\Algar.Conexao.pdb
+C:\Users\rafaelsan\Documents\Projetos\Algar.Conexao\bin\Debug\Algar.Conexao.xml
+C:\Users\rafaelsan\Documents\Projetos\Algar.Conexao\bin\Debug\System.Net.Http.dll
+C:\Users\rafaelsan\Documents\Projetos\Algar.Conexao\bin\Debug\System.Net.Http.xml
+C:\Users\rafaelsan\Documents\Projetos\Algar.Conexao\obj\Debug\Algar.Conexao.vbprojResolveAssemblyReference.cache
+C:\Users\rafaelsan\Documents\Projetos\Algar.Conexao\obj\Debug\Interop.ADODB.dll
+C:\Users\rafaelsan\Documents\Projetos\Algar.Conexao\obj\Debug\Algar.Conexao.vbproj.ResolveComReference.cache
+C:\Users\rafaelsan\Documents\Projetos\Algar.Conexao\obj\Debug\Algar.Conexao.Resources.resources
+C:\Users\rafaelsan\Documents\Projetos\Algar.Conexao\obj\Debug\Algar.Conexao.vbproj.GenerateResource.Cache
+C:\Users\rafaelsan\Documents\Projetos\Algar.Conexao\obj\Debug\Algar.Conexao.dll
+C:\Users\rafaelsan\Documents\Projetos\Algar.Conexao\obj\Debug\Algar.Conexao.xml
+C:\Users\rafaelsan\Documents\Projetos\Algar.Conexao\obj\Debug\Algar.Conexao.pdb

@@ -1,0 +1,11 @@
+C:\Users\a058572\Documents\svn_root\Algar.Utils\bin\Release\Algar.Utils.dll
+C:\Users\a058572\Documents\svn_root\Algar.Utils\bin\Release\Algar.Utils.pdb
+C:\Users\a058572\Documents\svn_root\Algar.Utils\bin\Release\Algar.Utils.xml
+C:\Users\a058572\Documents\svn_root\Algar.Utils\obj\Release\Algar.Utils.vbprojResolveAssemblyReference.cache
+C:\Users\a058572\Documents\svn_root\Algar.Utils\obj\Release\Interop.ADODB.dll
+C:\Users\a058572\Documents\svn_root\Algar.Utils\obj\Release\Algar.Utils.vbproj.ResolveComReference.cache
+C:\Users\a058572\Documents\svn_root\Algar.Utils\obj\Release\Algar.Utils.Resources.resources
+C:\Users\a058572\Documents\svn_root\Algar.Utils\obj\Release\Algar.Utils.vbproj.GenerateResource.Cache
+C:\Users\a058572\Documents\svn_root\Algar.Utils\obj\Release\Algar.Utils.dll
+C:\Users\a058572\Documents\svn_root\Algar.Utils\obj\Release\Algar.Utils.xml
+C:\Users\a058572\Documents\svn_root\Algar.Utils\obj\Release\Algar.Utils.pdb

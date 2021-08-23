@@ -1,0 +1,1283 @@
+﻿Imports System.Data.OleDb
+Imports System.Text.RegularExpressions
+Imports ADODB
+Imports System.Windows.Forms
+Imports System.Globalization
+Imports System.DirectoryServices
+Imports System.DirectoryServices.ActiveDirectory
+
+Public Class Conexao
+
+    Private conexao As New ADODB.Connection
+    Private cmd As New ADODB.Command
+    Public password_bd As String = ""
+    Public diretorio_bd As String = ""
+    Public banco_dados As String = ""
+    Public servidor_bd As String = ""
+    Public user_bd As String = ""
+    Public SGBD As Integer
+    Public Const TITULO_ALERTA = "Alerta do Sistema"
+
+    Public Enum FLAG_SGBD
+        SQL = 1
+        ACESS = 2
+    End Enum
+
+    Public Sub New(ByVal _SGBD As FLAG_SGBD, ByVal _password_bd As String, ByVal _banco_dados As String, ByVal _servidor_bd As String, ByVal _user_bd As String, ByVal _diretorio_bd As String)
+        SGBD = _SGBD
+        password_bd = _password_bd
+        banco_dados = _banco_dados
+        servidor_bd = _servidor_bd
+        user_bd = _user_bd
+        diretorio_bd = _diretorio_bd
+    End Sub
+
+    Public Function getStringConexao() As String
+        Dim strconexao As String = ""
+
+        If SGBD = 2 Then
+            'String de conexao com banco de dados MSACCESS com senha
+            strconexao = "Provider=Microsoft.ACE.OLEDB.12.0;"
+            strconexao += "Data Source=" & diretorio_bd & banco_dados & ";"
+            strconexao += "Jet OLEDB:Database Password= " & password_bd & ";"
+            strconexao += "Persist Security Info=False"
+        Else
+            'SQL Server , usando SQL Server OLE DB Provider
+            strconexao = "Provider=SQLOLEDB;"
+            strconexao += "Data Source=" & servidor_bd & ";"
+            strconexao += "Initial Catalog=" & banco_dados & ";"
+            strconexao += "User Id=" & user_bd & ";"
+            strconexao += "Password=" & password_bd & ";Connect Timeout=3000"
+        End If
+
+        Return strconexao
+    End Function
+
+    Public Function conectar() As Boolean
+        Dim bln As Boolean = False
+        Try
+            If conexao.State = ConnectionState.Closed Then
+                With conexao
+                    .ConnectionString = getStringConexao()
+                    .Mode = ConnectModeEnum.adModeReadWrite 'modo de conexao leitura e escrita
+                    .Open()
+                End With
+            End If
+            bln = True
+        Catch ex As Exception
+            desconectar()
+            'MsgBox("Erro ao efetuar a conexão com a base de dados." & vbNewLine & ex.Message, vbCritical, TITULO_ALERTA)
+            bln = False
+        End Try
+        Return bln
+    End Function
+
+    Public Sub desconectar()
+        Try
+            If Not conexao Is Nothing Then
+                If Not conexao.State = ConnectionState.Closed Then
+                    conexao.Close()
+                End If
+            End If
+        Catch ex As Exception
+            'MsgBox("Erro ao desconectar com a base de dados : " & ex.Message, vbCritical, TITULO_ALERTA)
+        End Try
+    End Sub
+
+    Public Sub testaConexao()
+        Try
+            conectar()
+            MsgBox("Conexão realizada com sucesso!!!")
+        Catch ex As Exception
+            'MsgBox("Não foi possível conectar ao banco de dados." & ex.Message, vbCritical, TITULO_ALERTA)
+            conexao = Nothing
+        End Try
+        desconectar()
+    End Sub
+
+    'Executa um comando SQL e retorna um boleano
+    Public Function executaQuery(ByVal strSql As String, Optional ByRef qtRegistroBlock As Long = 0) As Boolean
+        Try
+            'verifica se a conexao esta fechada
+            If conexao.State = ConnectionState.Closed Then
+                conectar()
+            End If
+            'executa a consulta
+            With conexao
+                .Execute(strSql, qtRegistroBlock)
+            End With
+
+            'retorna verdadeiro
+            executaQuery = True
+            desconectar()
+
+        Catch ex As Exception
+            'MsgBox("Erro de conexão(" & Err.Number & "): " & vbNewLine & "Não foi possível estabelecer uma conexão com o banco de dados. " & vbNewLine & strSql &
+            '"Por favor, tente novamente.", vbCritical, TITULO_ALERTA)
+            Return False
+            Exit Function
+        End Try
+    End Function
+
+    Public Function retornaDataTable(ByVal strSQL As String) As DataTable
+        Dim objDA As New OleDbDataAdapter
+        Dim objDT As New DataTable
+        Dim rsObjt As ADODB.Recordset
+        Try
+            If conexao.State = ConnectionState.Closed Then
+                conectar()
+            End If
+            rsObjt = retornaRs(strSQL)
+            objDT = recordSetToDataTable(rsObjt)
+            desconectar()
+        Catch ex As Exception
+            desconectar()
+            'MsgBox("Ocorreu um Erro: " & Err.Number & " " & ex.Message, vbCritical, TITULO_ALERTA)
+        End Try
+        retornaDataTable = objDT
+    End Function
+
+    'Retorna um recordset
+    Public Function retornaRs(ByVal strSQL As String) As ADODB.Recordset
+        Dim ADORecordset As New ADODB.Recordset
+        Try
+            If conexao.State = ConnectionState.Closed Then
+                conectar()
+            End If
+            With ADORecordset
+                .CursorLocation = CursorLocationEnum.adUseClient
+            End With
+            ADORecordset.Open(strSQL, conexao, CursorTypeEnum.adOpenKeyset, ADODB.LockTypeEnum.adLockOptimistic)
+            retornaRs = ADORecordset
+            ADORecordset = Nothing
+        Catch ex As Exception
+            'MsgBox("Ocorreu um Erro: " & Err.Number & " " & ex.Message, vbCritical, TITULO_ALERTA)
+            Return Nothing
+        End Try
+    End Function
+
+    Public Function recordSetToDataTable(ByVal objRS As ADODB.Recordset) As DataTable
+        Dim objDA As New OleDbDataAdapter()
+        Dim objDT As New DataTable()
+        objDA.Fill(objDT, objRS)
+        desconectar()
+        Return objDT
+    End Function
+
+    Public Function logicoSql(ByVal argValor As Boolean, Optional ByVal sql As Boolean = True) As String
+        'Função que troca os valores lógicos Verdadeiro/Falso
+        'para True/False para utilização em consultas SQL
+        'Se o valor for verdadeiro
+        If argValor Then
+            'Troca por True
+            logicoSql = IIf(sql, "1", "True")
+            'logicoSql = "True"
+        Else
+            'Senão troca por False
+            logicoSql = IIf(sql, "0", "False")
+            'logicoSql = "False"
+        End If
+    End Function
+
+    Public Function pontoVirgula(ByVal varValor As Object) As String
+        'Função que troca a vírgula de um valor decimal por
+        'um ponto para utilização em consultas SQL
+
+        Dim strValor As String
+        Dim strInteiro As String
+        Dim strDecimal As String
+        Dim intPosicao As Integer
+
+        'Converte o valor em string
+        strValor = CStr(varValor)
+
+        'Busca a posição da vírgula
+        intPosicao = InStr(strValor, ",")
+
+        'Se há uma vírgula em alguma posição
+        If intPosicao > 0 Then
+            'Retira a parte inteira
+            strInteiro = Left(strValor, intPosicao - 1)
+            'Retira a parte decimal
+            strDecimal = Right(strValor, Len(strValor) - intPosicao)
+            'Junta os dois novamente incluindo
+            'agora o ponto no lugar da vírgula
+            pontoVirgula = strInteiro & "." & strDecimal
+        Else
+            'Senão devolve o mesmo valor
+            pontoVirgula = strValor
+        End If
+
+    End Function
+
+    Public Function HoraSql(ByVal argData As DateTime, Optional ByVal sql As Boolean = True) As String
+        'Função que formata uma data para o modo SQL
+        'com a cerquilha: #YYYY-MM-DD HH:MM:SS#
+        'sempre retorna uma string
+        Dim strDataCompleta As String
+        'Remonta no formato adequado (Padrão banco de dados)
+        strDataCompleta = CDate(argData).ToString("HH:mm:ss")
+        'HoraSql = "#" & strDataCompleta & "#"
+        HoraSql = IIf(sql, "'" & strDataCompleta & "'", "#" & strDataCompleta & "#")
+    End Function
+
+    Public Function dataSql(ByVal argData As DateTime, Optional ByVal sql As Boolean = True) As String
+        'Função que formata uma data para o modo SQL
+        'com a cerquilha: #YYYY-MM-DD HH:MM:SS#
+        'sempre retorna uma string
+        Dim strDataCompleta As String
+        'Remonta no formato adequado (Padrão banco de dados)
+        strDataCompleta = CDate(argData).ToString("yyyy-MM-dd HH:mm:ss")
+        'dataSql = "#" & strDataCompleta & "#"
+        dataSql = IIf(sql, "'" & strDataCompleta & "'", "#" & strDataCompleta & "#")
+    End Function
+
+    Public Function dataSqlAbreviada(ByVal argData As DateTime, Optional ByVal sql As Boolean = True) As String
+        'Função que formata uma data para o modo SQL
+        'com a cerquilha: #YYYY-MM-DD HH:MM:SS#
+        'sempre retorna uma string
+        Dim strDataCompleta As String
+        'Remonta no formato adequado (Padrão banco de dados)
+        strDataCompleta = CDate(argData).ToString("yyyy-MM-dd")
+        dataSqlAbreviada = IIf(sql, "'" & strDataCompleta & "'", "#" & strDataCompleta & "#")
+    End Function
+
+    Public Function valorSql(ByVal argValor As Object, Optional ByVal sql As Boolean = True) As String
+        'Função que formata valores para utilização
+        'em consultas SQL
+        valorSql = Nothing
+
+        If argValor = Nothing Then
+            valorSql = "Null"
+        End If
+        'Seleciona o tipo de valor informado
+        Select Case VarType(argValor)
+            'Caso seja vazio ou nulo apenas
+            'devolve a string Null
+            Case vbEmpty, vbNull
+                valorSql = "Null"
+                'Caso seja inteiro ou longo apenas
+                'converte em string
+            Case vbInteger, vbLong
+                valorSql = CStr(argValor)
+                'Caso seja simples, duplo, decimal ou moeda
+                'substitui a vírgula por ponto
+            Case vbSingle, vbDouble, vbDecimal, vbCurrency
+                valorSql = pontoVirgula(argValor)
+                'Caso seja data chama a função dataSql()
+            Case vbDate
+                'verifica se esta vazio e retorna Null
+                'Or argValor = "00:00:00" Or argValor = "12:00:00 AM"
+                Dim dataVazia As DateTime = Nothing
+                If CDate(argValor).ToString("yyyy-MM-dd HH:mm:ss") = CDate(dataVazia).ToString("yyyy-MM-dd HH:mm:ss") Then
+                    valorSql = "Null"
+                Else
+                    valorSql = dataSql(argValor, sql)
+                End If
+                'Caso seja string acrescenta aspas simples
+            Case vbString
+                If String.IsNullOrEmpty(argValor) Or argValor = "" Then
+                    'devolve a string Null
+                    valorSql = "Null"
+                Else
+                    'acrescenta aspas simples para valores diferentes de vazio
+                    valorSql = "'" & argValor & "'"
+                End If
+                'Caso seja lógico chama a função logicoSql()
+            Case vbBoolean
+                valorSql = logicoSql(argValor, sql)
+        End Select
+        Return valorSql
+    End Function
+    'Função para retornar um valor vazio ao invés de nulo.
+    'para utilização nas classes DTO
+    'Para setar campo data como null/nothing:
+    'campoDeData = objCon.retornaVazioParaValorNulo(drRow("data_inicial_viagem"), Nothing)
+    Public Function retornaVazioParaValorNulo(ByVal valor As Object, Optional ByVal valorRetorno As Object = "") As Object
+        'verificamos se a variavel esta vazia ou nulla e retornamos vazio e/ou nothing nos casos de data vazia
+        If String.IsNullOrEmpty(If(IsDBNull(valor), valorRetorno, valor)) Then
+            Return valorRetorno
+        ElseIf IsDBNull(valor) Then 'novo
+            Return valorRetorno
+        Else
+            Return valor
+        End If
+    End Function
+
+    'Protected Overrides Sub Finalize()
+    '    desconectar()
+    'End Sub
+End Class
+
+Public Class Helpers
+    Public Const TITULO_ALERTA = "Alerta do Sistema"
+    Public Enum FLAG_REDE
+        ALGAR = 1
+        BRADESCO = 2
+    End Enum
+
+
+    Public Function Decrypt(str As String) As String
+        Dim b As Byte() = Convert.FromBase64String(str)
+        Dim decryp As String = System.Text.ASCIIEncoding.ASCII.GetString(b)
+        Return decryp
+    End Function
+
+    Public Function Encrypt(str As String) As String
+        Dim b As Byte() = System.Text.ASCIIEncoding.ASCII.GetBytes(str)
+        Dim encryp As String = Convert.ToBase64String(b)
+        Return encryp
+    End Function
+
+
+    Public Function removeWhitespace(fullString As String) As String
+        Return New String(fullString.Where(Function(x) Not Char.IsWhiteSpace(x)).ToArray())
+    End Function
+    Public Function desacentua(ByVal argTexto As String) As String
+        'Função que retira acentos de qualquer texto.
+        Dim strAcento As String
+        Dim strNormal As String
+        Dim strLetra As String
+        Dim strNovoTexto As String = ""
+        Dim intPosicao As Integer
+        Dim i As Integer
+
+        'Informa as duas sequências de caracteres, com e sem acento
+        strAcento = "ÃÁÀÂÄÉÈÊËÍÌÎÏÕÓÒÔÖÚÙÛÜÝÇÑãáàâäéèêëíìîïõóòôöúùûüýçñ'*_"
+        strNormal = "AAAAAEEEEIIIIOOOOOUUUUYCNaaaaaeeeeiiiiooooouuuuycn_"
+
+        'Retira os espaços antes e após
+        argTexto = Trim(argTexto)
+        'Para i de 1 até o tamanho do texto
+        For i = 1 To Len(argTexto)
+            'Retira a letra da posição atual
+            strLetra = Mid(argTexto, i, 1)
+            'Busca a posição da letra na sequência com acento
+            intPosicao = InStr(1, strAcento, strLetra)
+            'Se a posição for maior que zero
+            If intPosicao > 0 Then
+                'Retira a letra na mesma posição na
+                'sequência sem acentos.
+                strLetra = Mid(strNormal, intPosicao, 1)
+            End If
+            'Remonta o novo texto, sem acento
+            strNovoTexto = strNovoTexto & strLetra
+        Next
+        'Devolve o resultado
+        desacentua = strNovoTexto
+    End Function
+
+    Public Function validaCPF(ByVal argCpf As String) As Boolean
+        'Função que verifica a validade de um CPF.
+        Dim wSomaDosProdutos
+        Dim wResto
+        Dim wDigitChk1
+        Dim wDigitChk2
+        Dim wI
+        'Inicia o valor da Soma
+        wSomaDosProdutos = 0
+        'Para posição I de 1 até 9
+        For wI = 1 To 9
+            'Soma = Soma + (valor da posição dentro do CPF x (11 - posição))
+            wSomaDosProdutos = wSomaDosProdutos + Val(Mid(argCpf, wI, 1)) * (11 - wI)
+        Next wI
+        'Resto = Soma - ((parte inteira da divisão da Soma por 11) x 11)
+        wResto = wSomaDosProdutos - Int(wSomaDosProdutos / 11) * 11
+        'Dígito verificador 1 = 0 (se Resto=0 ou 1 ) ou 11 - Resto (nos casos restantes)
+        wDigitChk1 = IIf(wResto = 0 Or wResto = 1, 0, 11 - wResto)
+        'Reinicia o valor da Soma
+        wSomaDosProdutos = 0
+        'Para posição I de 1 até 9
+        For wI = 1 To 9
+            'Soma = Soma + (valor da posição dentro do CPF x (12 - posição))
+            wSomaDosProdutos = wSomaDosProdutos + (Val(Mid(argCpf, wI, 1)) * (12 - wI))
+        Next wI
+        'Soma = Soma (2 x dígito verificador 1)
+        wSomaDosProdutos = wSomaDosProdutos + (2 * wDigitChk1)
+        'Resto = Soma - ((parte inteira da divisão da Soma por 11) x 11)
+        wResto = wSomaDosProdutos - Int(wSomaDosProdutos / 11) * 11
+        'Dígito verificador 2 = 0 (se Resto=0 ou 1 ) ou 11 - Resto (nos casos restantes)
+        wDigitChk2 = IIf(wResto = 0 Or wResto = 1, 0, 11 - wResto)
+        'Se o dígito da posição 10 = Dígito verificador 1 E
+        'dígito da posição 11 = Dígito verificador 2 Então
+        If Mid(argCpf, 10, 1) = Mid(Trim(Str(wDigitChk1)), 1, 1) And Mid(argCpf, 11, 1) = Mid(Trim(Str(wDigitChk2)), 1, 1) Then
+            'CPF válido
+            validaCPF = True
+        Else
+            'CPF inválido
+            validaCPF = False
+        End If
+    End Function
+
+    Public Function validaEmail(ByVal eMail As String) As Boolean
+        'Função de validação do formato de um e-mail.
+
+        Dim posicaoA As Integer
+        Dim posicaoP As Integer
+
+        'Busca posição do caracter @
+        posicaoA = InStr(eMail, "@")
+        'Busca a posição do ponto a partir da posição
+        'do @ ou então da primeira posição
+        posicaoP = InStr(posicaoA Or 1, eMail, ".")
+
+        'Se a posição do @ for menor que 2 OU
+        'a posição do ponto for menor que a posição
+        'do caracter @
+        If posicaoA < 2 Or posicaoP < posicaoA Then
+            'Formato de e-mail inválido
+            validaEmail = False
+        Else
+            'Formato de e-mail válido
+            validaEmail = True
+        End If
+
+    End Function
+
+    Public Function nomeProprio(ByVal argNome As String) As String
+        'Função recursiva para converter a primeira letra
+        'dos nomes próprios para maiúscula, mantendo os
+        'aditivos em caixa baixa.
+        Dim sNome As String
+        Dim lEspaco As Long
+        Dim lTamanho As Long
+        'Pega o tamanho do nome
+        lTamanho = Len(argNome)
+        'Passa tudo para caixa baixa
+        argNome = LCase(argNome)
+        'Se o nome passado é vazio
+        'acaba a função ou a recursão
+        'retornando string vazia
+        If lTamanho = 0 Then
+            nomeProprio = ""
+        Else
+            'Procura a posição do primeiro espaço
+            lEspaco = InStr(argNome, " ")
+            'Se não tiver pega a posição da última letra
+            If lEspaco = 0 Then lEspaco = lTamanho
+            'Pega o primeiro nome da string
+            sNome = Left(argNome, lEspaco)
+            'Se não for aditivo converte a primeira letra
+            If Not InStr("e da das de do dos ", sNome) > 0 Then
+                sNome = UCase(Left(sNome, 1)) & LCase(Right(sNome, Len(sNome) - 1))
+            End If
+            'Monta o nome convertendo o restante através da recursão
+            nomeProprio = sNome & nomeProprio(LCase(Trim(Right(argNome, lTamanho - lEspaco))))
+        End If
+    End Function
+
+    Public Function abreviaNome(ByVal argNome As String) As String
+        'Função que abrevia o penúltimo sobrenome, levando
+        'em consideração os aditivos de, da, do, dos, das, e.
+
+        'Define variáveis para controle de posição e para as
+        'partes do nome que serão separadas e depois unidas
+        'novamente.
+        Dim ultimoEspaco As Integer, penultimoEspaco As Integer
+        Dim primeiraParte As String, ultimaParte As String
+        Dim parteNome As String
+        Dim tamanho As Integer, i As Integer
+
+        'Tamanho do nome passado
+        'no argumento
+        tamanho = Len(argNome)
+
+        'Loop que verifica a posição do último e do penúltimo
+        'espaços, utilizando apenas um loop.
+        For i = tamanho To 1 Step -1
+            If Mid(argNome, i, 1) = " " And ultimoEspaco <> 0 Then
+                penultimoEspaco = i
+                Exit For
+            End If
+            If Mid(argNome, i, 1) = " " And penultimoEspaco = 0 Then
+                ultimoEspaco = i
+            End If
+        Next i
+
+        'Caso i chegue a zero não podemos
+        'abreviar o nome
+        If i = 0 Then
+            abreviaNome = argNome
+            Exit Function
+        End If
+
+        'Separação das partes do nome em três: primeira, meio e última
+        primeiraParte = Left(argNome, penultimoEspaco - 1)
+        parteNome = Mid(argNome, penultimoEspaco + 1, ultimoEspaco - penultimoEspaco - 1)
+        ultimaParte = Right(argNome, tamanho - ultimoEspaco)
+
+        'Para a montagem do nome já abreviado verificamos se a parte retirada
+        'não é um dos nomes de ligação: de, da ou do. Caso seja usamos o método
+        'recursivo para refazer os passos.
+        'Caso seja necessário basta acrescentar outros nomes de ligação para serem
+        'verificados.
+        If parteNome = "da" Or parteNome = "de" Or parteNome = "do" Or parteNome = "dos" Or parteNome = "das" Or parteNome = "e" Then
+            abreviaNome = abreviaNome(primeiraParte & " " & parteNome) & " " & ultimaParte
+        Else
+            abreviaNome = primeiraParte & " " & Left(parteNome, 1) & ". " & ultimaParte
+        End If
+    End Function
+
+    Public Function transformarMoeda(ctrl As String) As Double
+        Dim valor As String = ctrl
+        Dim n As String = String.Empty
+        Dim v As Double = 0
+        Try
+            'Formatando para duas casas decimais antes das validações
+            'este procedimento corrigi um bug para numeros com apenas 1 digito nas casas decimais
+            Dim getDuasCasasDecimais As String = Microsoft.VisualBasic.Right(ctrl, 2)
+            Dim getVirgulaouPontoCasasDecimais As String = Microsoft.VisualBasic.Left(getDuasCasasDecimais, 1)
+            If getVirgulaouPontoCasasDecimais = "." Or getVirgulaouPontoCasasDecimais = "," Then
+                valor = ctrl.PadRight(ctrl.Length + 1, "0")
+            End If
+
+            'Verificando se o valor contem ',' ou '.' ou ausencia de pontuação
+            If InStr(valor, ".") Or InStr(valor, ",") Then
+                n = valor.Replace(",", "").Replace(".", "")
+                If n.Equals("") Then n = "000"
+                If n.Length > 3 And n.Substring(0, 1) = "0" Then n = n.Substring(1, n.Length - 1)
+
+            Else 'Caso não haja pontuação apenas acrescenta 2 zeros para gerar o valor moeda
+                n = valor.PadRight(valor.Length + 2, "0")
+            End If
+            v = Convert.ToDouble(n) / 100
+            Return CDbl(v)
+            'valor = String.Format("{0:C}", v) 'acess {0:N}
+        Catch ex As Exception
+            Return 0
+            Exit Function
+        End Try
+    End Function
+
+    Public Function removerCharEspecial(strIn As String) As String
+        ' Replace invalid characters with empty strings.
+        Try
+            Return Regex.Replace(strIn, "[^\w\.@-]", " ")
+            ' If we timeout when replacing invalid characters, 
+            ' we should return String.Empty.
+        Catch e As Exception
+            Return String.Empty
+        End Try
+    End Function
+
+    'Função para validar o preenchimento de campos obrigatórios
+    'argForm = nome do formulario
+    'strCamposObrigatorios = lista do com o nome dos campos separados por ";"
+    'tituloCampos = lista dos titulos dos campos na mesma ordem e separados por ";"
+    'validaCamposObrigatorios(Me, "nomeCampo1;nomeCampo2;etc", "TituloCampo1;TituloCampo2;etc")
+    Public Function validaCamposObrigatorios(ByVal argForm As Control, ByVal strCamposObrigatorios As String, Optional ByVal tituloCampos As String = "") As Boolean
+        Dim nomeCampos As Object
+        Dim campos As Object
+        Dim valor As Object
+        Dim i As Long
+        Dim inicio As Long
+        Dim fim As Long
+        Dim ctrl As String
+        'Windows.Forms.Form
+        'monta os arrays
+        campos = Split(strCamposObrigatorios, ";")
+        nomeCampos = Split(tituloCampos, ";")
+        'captura o inicio e fim do array
+        inicio = LBound(campos)
+        fim = UBound(campos)
+        i = inicio
+
+        'inicia a validação uma a uma
+        For i = inicio To fim
+            'captura o nome do tipo de campo
+            ctrl = argForm.Controls(campos(i)).GetType.Name
+            Select Case ctrl
+                'Caso seja ComboBox
+                Case "ComboBox"
+                    valor = argForm.Controls(campos(i)).Text
+                    If String.IsNullOrEmpty(valor) Then
+                        MsgBox("Uma opção: " & argForm.Controls(campos(i)).Tag & ". Deve ser selecionada.", MsgBoxStyle.Information, TITULO_ALERTA)
+                        'argForm(campos(i)).SetFocus() 'Coloca o cursor no campo
+                        argForm.Controls(campos(i)).Focus()
+                        argForm.Controls(campos(i)).BackColor = System.Drawing.Color.FromArgb(CType(255, Byte), CType(255, Byte), CType(128, Byte))
+                        validaCamposObrigatorios = False
+                        Exit Function
+                    Else
+                        'Altera a cor de fundo para branco
+                        argForm.Controls(campos(i)).BackColor = System.Drawing.Color.White
+                    End If
+                    'Caso seja TextBox
+                Case "TextBox"
+                    valor = argForm.Controls(campos(i)).Text
+                    If String.IsNullOrEmpty(valor) Then
+                        MsgBox("O Campo: " & argForm.Controls(campos(i)).Tag & ". Deve ser preenchido.", MsgBoxStyle.Information, TITULO_ALERTA)
+                        argForm.Controls(campos(i)).Focus()
+                        argForm.Controls(campos(i)).BackColor = System.Drawing.Color.FromArgb(CType(255, Byte), CType(255, Byte), CType(128, Byte))
+                        validaCamposObrigatorios = False
+                        Exit Function
+                    Else
+                        'Altera a cor de fundo para branco
+                        argForm.Controls(campos(i)).BackColor = System.Drawing.Color.White
+                    End If
+                    'Caso seja MaskeCheckBox
+                Case "MaskedTextBox"
+                    'tira a formatação
+                    argForm.Controls(campos(i)).TextMaskFormat = MaskFormat.ExcludePromptAndLiterals
+                    'captura o valor sem a mascara
+                    valor = argForm.Controls(campos(i)).Text
+                    'retorna a formatação
+                    argForm.Controls(campos(i)).TextMaskFormat = MaskFormat.IncludePromptAndLiterals
+                    If String.IsNullOrEmpty(valor) Then
+                        MsgBox("O Campo: " & argForm.Controls(campos(i)).Tag & ". Deve ser preenchido.", MsgBoxStyle.Information, TITULO_ALERTA)
+                        argForm.Controls(campos(i)).Focus()
+                        argForm.Controls(campos(i)).BackColor = System.Drawing.Color.FromArgb(CType(255, Byte), CType(255, Byte), CType(128, Byte))
+                        validaCamposObrigatorios = False
+                        Exit Function
+                    Else
+                        'Altera a cor de fundo para branco
+                        argForm.Controls(campos(i)).BackColor = System.Drawing.Color.White
+                    End If
+                    'Caso seja CheckBox (Normalmente esta campo é opcional)
+                Case "CheckBox"
+                    '    'Caso seja OptionButton
+                    'Case "OptionButton"
+                    '    valor = argForm.Controls(campos(i)).Text
+                    '    If String.IsNullOrEmpty(valor) Then
+                    '        MsgBox("Uma opção: " & argForm.Controls(campos(i)).Tag & ". Deve ser selecionada.", MsgBoxStyle.Information, TITULO_ALERTA)
+                    '        argForm.Controls(campos(i)).Focus()
+                    '        'argForm.Controls(campos(i)).BackColor = System.Drawing.Color.FromArgb(CType(255, Byte), CType(255, Byte), CType(128, Byte))
+                    '        validaCamposObrigatorios = False
+                    '        Exit Function
+                    '    End If
+
+                    '    'Caso seja OptionGroup
+                    'Case "OptionGroup"
+                    '    valor = argForm.Controls(campos(i)).Text
+                    '    If String.IsNullOrEmpty(valor) Then
+                    '        MsgBox("Uma opção: " & argForm.Controls(campos(i)).Tag & ". Deve ser selecionada.", MsgBoxStyle.Information, TITULO_ALERTA)
+                    '        argForm.Controls(campos(i)).Focus()
+                    '        'argForm.Controls(campos(i)).BackColor = System.Drawing.Color.FromArgb(CType(255, Byte), CType(255, Byte), CType(128, Byte))
+                    '        validaCamposObrigatorios = False
+                    '        Exit Function
+                    '    End If
+
+            End Select
+        Next i
+        validaCamposObrigatorios = True
+    End Function
+    ''Limpa objetos de um determinado formulário
+    Public Sub limparCampos(ByRef Tela As Control)
+        'Caso ocorra erro, não mostrar o erro, ignorando e indo para á próxima linha
+        On Error Resume Next
+        'Declaramos uma variavel Campo do tipo Object
+        '(Tipo Object porque iremos trabalhar com todos os campos do Form, podendo ser
+        '       Label, Button, TextBox, ComboBox e outros)
+        Dim Campo As Object
+        'Usaremos For Each para passarmos por todos os controls do objeto atual
+        For Each Campo In Tela.Controls
+            'Verifica se o Campo é um GroupBox, TabPage ou Panel
+            'Se for então precisa limpar os campos que estão dentro dele também...
+            'Chamaremos novamente a função mas passando por referencia
+            '      O GroupBox, TabPage ou Panel atual
+            If TypeOf Campo Is System.Windows.Forms.GroupBox Or
+                TypeOf Campo Is System.Windows.Forms.TabPage Or
+                TypeOf Campo Is System.Windows.Forms.Panel Then
+                limparCampos(Campo)
+            ElseIf TypeOf Campo Is System.Windows.Forms.TextBox Then
+                Campo.Text = String.Empty 'Verificamos se o campo é uma TextBox se for então devemos limpar o campo
+            ElseIf TypeOf Campo Is System.Windows.Forms.ComboBox Then
+                'Verificamos se o campo é um ComboBox
+                If Campo.DropDownStyle = ComboBoxStyle.DropDownList Then
+                    Campo.SelectedIndex = -1 'Se o tipo da ComboBox for DropDownList então devemos deixar sem seleção
+                    'ElseIf Campo.DropDownStyle = ComboBoxStyle.DropDown Then
+                    'Campo.Text = ""
+                Else
+                    'Campo.Text = String.Empty
+                    Campo.SelectedValue = 0
+                End If
+            ElseIf TypeOf Campo Is System.Windows.Forms.CheckBox Then
+                Campo.Checked = False
+            ElseIf TypeOf Campo Is System.Windows.Forms.DataGridView Then
+                Campo.DataSource = Nothing
+            ElseIf TypeOf Campo Is System.Windows.Forms.RadioButton Then
+                Campo.Checked = False
+            ElseIf TypeOf Campo Is System.Windows.Forms.MaskedTextBox Then
+                Campo.Text = String.Empty
+            End If
+        Next
+
+    End Sub
+
+    'Função para limpar as infos de um combobox
+    Public Sub limpaCombobox(cb As ComboBox)
+        With cb
+            .DataSource = Nothing
+            .DisplayMember = Nothing
+            .Items.Clear()
+        End With
+    End Sub
+
+    'função para abrir um formulario
+    Public Sub abrirForm(frm As Form, Optional janelaRestrita As Boolean = False)
+        If janelaRestrita Then
+            frm.ShowDialog()
+        Else
+            frm.Show()
+        End If
+    End Sub
+
+    'função para fechar um formulario
+    Public Sub fecharForm(frm As Form)
+        frm.Close()
+    End Sub
+
+    'função para capturar o id de rede
+    Public Function capturaIdRede() As String
+        capturaIdRede = Environ("USERNAME").ToString
+    End Function
+
+    'função para limitar uma quantidade minima e maxima de caracteres.
+    'Utilizar no LostFocus
+    'txtCartao_Leave(sender As Object, e As EventArgs) Handles txtCartao.Leave
+    'hlp.validaTamanhoMinMax(txtCartao, 15, 15)
+    Public Function validaTamanhoMinMax(ByVal ctl As Control, iMinLen As Integer, iMaxLen As Integer) As Boolean
+        If Not String.IsNullOrEmpty(ctl.Text) Then
+            Dim texto As String = Trim(Replace(ctl.Text, " ", ""))
+
+            'se diferente de vazio
+            If Not String.IsNullOrEmpty(Replace(texto.Trim, "_", "")) Then
+                'Limite Maximo
+                If Len(Replace(texto.Trim, "_", "")) > iMaxLen Then
+                    MsgBox("Limite máximo de " & iMaxLen & " caracteres foi excedido." & vbNewLine, vbInformation, TITULO_ALERTA)
+                    ctl.Text = Left(texto.Trim, iMaxLen)
+                    ctl.Focus()
+                    ctl.BackColor = System.Drawing.Color.FromArgb(CType(255, Byte), CType(255, Byte), CType(128, Byte))
+                    Return False
+                    Exit Function
+                End If
+                'Limite Minimo
+                If Len(Replace(texto.Trim, "_", "")) < iMinLen Then
+                    MsgBox("Limite mínimo de " & iMinLen & " caracteres." & vbNewLine, vbInformation, TITULO_ALERTA)
+                    ctl.Text = Left(texto.Trim, iMinLen)
+                    ctl.Focus()
+                    ctl.BackColor = System.Drawing.Color.FromArgb(CType(255, Byte), CType(255, Byte), CType(128, Byte))
+                    Return False
+                    Exit Function
+                End If
+                ctl.BackColor = System.Drawing.Color.White
+                ctl.Text = texto
+            Else
+                ctl.BackColor = System.Drawing.Color.White
+                Return False
+                Exit Function
+            End If
+        End If
+        Return True
+    End Function
+
+    'verificar se uma data é valida.
+    'Utilizar no LostFocus
+    Public Function validaData(ByVal Controle As Control) As Boolean
+
+        Try
+            Dim idiomaPC As String
+            Dim formato As String = ""
+            'se diferente de vazio
+            If Not String.IsNullOrEmpty(Replace(Replace(Controle.Text.Trim, "_", ""), "/", "").Trim) Then
+                If Not IsDate(Controle.Text) Then
+                    'captura o idioma da maquina
+                    idiomaPC = CultureInfo.CurrentCulture.Name
+                    If idiomaPC = "pt-BR" Then
+                        formato = "dia/mês/ano"
+                    Else
+                        formato = "mês/dia/ano"
+                    End If
+                    'para o campo: " & Controle.Tag & "." & vbNewLine &
+                    MsgBox("Data inválida! " & vbNewLine &
+                           "Possíveis motivos: " & vbNewLine &
+                           " > Data inexistente." & vbNewLine &
+                           " > Utilize o formato: " & idiomaPC.ToUpper & " (" & formato.ToUpper & ").", MsgBoxStyle.Information, TITULO_ALERTA)
+                    Controle.BackColor = System.Drawing.Color.FromArgb(CType(255, Byte), CType(255, Byte), CType(128, Byte))
+                    Controle.Focus()
+                    Return False
+                Else
+                    Controle.BackColor = System.Drawing.Color.White
+                    Return True
+                End If
+            Else
+                Controle.BackColor = System.Drawing.Color.White
+                Return False
+            End If
+
+        Catch ex As Exception
+            Controle.BackColor = System.Drawing.Color.White
+            Return False
+        End Try
+    End Function
+
+    'Funções para formatação de data
+    Public Function dataHoraAtual() As DateTime
+        Return DateTime.Now
+    End Function
+
+    Public Function dataAbreviada() As Date
+        Return CDate(DateTime.Now).ToString("yyyy-MM-dd")
+    End Function
+
+    Public Function formataHoraAbreviada(hr As DateTime) As Date
+        Return CDate(hr).ToString("HH:mm:ss")
+    End Function
+
+    Public Function FormataDataAbreviada(dt As Object) As DateTime
+        If Replace(Replace(dt, "/", ""), "_", "").Trim = Nothing Then
+            Return Nothing
+        End If
+        Return CDate(dt).ToString("yyyy-MM-dd")
+    End Function
+
+    Public Function FormataDataHoraCompleta(hr As DateTime) As Date
+        Return CDate(hr).ToString("yyyy-MM-dd HH:mm:ss")
+    End Function
+
+    Public Function convertDatetime(data As Object) As DateTime
+        If IsDBNull(data) Then
+            Return Nothing
+        Else
+            Return Convert.ToDateTime(data).ToString
+        End If
+    End Function
+
+    Public Function retornaDirPessoal(ByVal rede As FLAG_REDE) As String
+        If rede = 1 Then
+            retornaDirPessoal = "C:\Users\" & Environ("USERNAME") & "\Documents\"
+        Else
+            retornaDirPessoal = "\\" & Environ("COMPUTERNAME") & "\c$\Users\" & Environ("USERNAME") & "\"
+        End If
+    End Function
+
+    Public Sub abrirArquivo(arquivo As String)
+        System.Diagnostics.Process.Start(arquivo)
+    End Sub
+
+    Public Function isFileOpen(ByVal filename As String) As Boolean
+
+        Dim filenum As Integer, errnum As Integer
+        On Error Resume Next   ' Turn error checking off.
+        filenum = FreeFile()   ' Get a free file number.
+        FileOpen(filenum, filename, OpenMode.Random, OpenAccess.ReadWrite)
+        FileClose(filenum)  'close the file.
+        errnum = Err.Number 'Save the error number that occurred.
+        On Error GoTo 0        'Turn error checking back on.
+        ' Check to see which error occurred.
+        Select Case errnum
+            ' No error occurred.
+            ' File is NOT already open by another user.
+            Case 0
+                Return False
+                ' Error number for "Permission Denied."
+                ' File is already opened by another user.
+            Case 70, 55, 75
+                Return True
+                ' Another error occurred.
+            Case Else
+                Error errnum
+        End Select
+
+    End Function
+
+    Public Function pegarExtensao(arquivo As String) As String
+        Dim i As Integer
+        Dim j As Integer
+        i = InStrRev(arquivo, ".")
+        j = InStrRev(arquivo, "\")
+        If j = 0 Then j = InStrRev(arquivo, ":")
+        'End If
+        If j < i Or i > 0 Then
+            pegarExtensao = Right(arquivo, (Len(arquivo) - i))
+        Else
+            Return ""
+        End If
+    End Function
+    'para copiar para um determinado local
+    Public Sub copiaArquivo(ByVal origem As String, ByVal destino As String, ByVal arquivo As String, Optional ByVal id As String = "")
+        Dim novoNome As String = ""
+        Try
+            origem = Replace(origem, arquivo, "") & arquivo
+            'atribui um novo nome unico para o arquivo
+            novoNome = id & " " & capturaIdRede() & " " & Format(Now, "ddMMyyyy HHmmss") & "." & pegarExtensao(arquivo)
+            destino = destino & novoNome
+
+            'novoNome = capturaIdRede() & " " & Format(Now, "ddMMyyyy HHmmss") & "." & PegarExtensao(arquivo)
+            'se o arquivo não existir
+            If Len(Dir(destino)) = 0 Then
+                'se não existir nenhum arquivo, pode copiar
+                Microsoft.VisualBasic.FileCopy(origem, destino)
+                'caso existir apaga e depois copia
+            Else
+                'verifica se o arquivo ja esta em uso
+                If isFileOpen(destino) Then
+                    MsgBox("Arquivo já em uso!", vbInformation, TITULO_ALERTA)
+                    Exit Sub
+                End If
+                'apaga o arquivo antigo
+                Microsoft.VisualBasic.Kill(destino)
+                'copia o novo arquivo
+                Microsoft.VisualBasic.FileCopy(origem, destino)
+            End If
+        Catch ex As Exception
+            MsgBox(ex.Message & "Erro nº: " & Err.Number, vbCritical, TITULO_ALERTA)
+        End Try
+    End Sub
+
+    Public Function copiaArquivoRetornaNome(ByVal origem As String, ByVal destino As String, ByVal arquivo As String, Optional ByVal id As String = "") As String
+        Dim novoNome As String = ""
+        Try
+            origem = Replace(origem, arquivo, "") & arquivo
+            'atribui um novo nome unico para o arquivo
+            novoNome = id & " " & capturaIdRede() & " " & Format(Now, "ddMMyyyy HHmmss") & "." & pegarExtensao(arquivo)
+            destino = destino & novoNome
+
+            'novoNome = capturaIdRede() & " " & Format(Now, "ddMMyyyy HHmmss") & "." & PegarExtensao(arquivo)
+            'se o arquivo não existir
+            If Len(Dir(destino)) = 0 Then
+                'se não existir nenhum arquivo, pode copiar
+                Microsoft.VisualBasic.FileCopy(origem, destino)
+                'caso existir apaga e depois copia
+            Else
+                'verifica se o arquivo ja esta em uso
+                If isFileOpen(destino) Then
+                    MsgBox("Este arquivo esta em uso.", vbCritical, TITULO_ALERTA)
+                    Return novoNome
+                    Exit Function
+                End If
+                'apaga o arquivo antigo
+                Microsoft.VisualBasic.Kill(destino)
+                'copia o novo arquivo
+                Microsoft.VisualBasic.FileCopy(origem, destino)
+            End If
+            Return novoNome
+        Catch ex As Exception
+            MsgBox(ex.Message & "Erro nº: " & Err.Number, vbCritical, TITULO_ALERTA)
+        End Try
+        Return novoNome
+    End Function
+
+    'Metodo para desabilitar o botão "X" fechar
+    'Disable the button on the current form:
+    'RemoveXButton(Me.Handle())
+    Public Declare Function GetSystemMenu Lib "user32" (ByVal hwnd As Integer, ByVal bRevert As Integer) As Integer
+    Public Declare Function RemoveMenu Lib "user32" (ByVal hMenu As Integer, ByVal nPosition As Integer, ByVal wFlags As Integer) As Integer
+    Public Const SC_CLOSE = &HF060&
+    Public Const MF_BYCOMMAND = &H0&
+    Public Function removeXButton(ByVal iHWND As Integer) As Integer
+        Dim iSysMenu As Integer
+        iSysMenu = GetSystemMenu(iHWND, False)
+        Return RemoveMenu(iSysMenu, SC_CLOSE, MF_BYCOMMAND)
+    End Function
+
+    Public Function retornaIdiomaPC() As String
+        Return CultureInfo.CurrentCulture.Name.ToUpper.Trim
+    End Function
+
+    Public Function totalLinhasArquivoTxt(caminhoArquivo As String) As Long
+        'Regular Expression e contar as quebras de linhas:
+        Dim re As New System.Text.RegularExpressions.Regex("\r\n")
+        Dim sr As New System.IO.StreamReader(caminhoArquivo)
+        Dim txt As String = sr.ReadToEnd()
+        Dim qtdLinhas As Long = re.Matches(txt).Count + 1
+        sr.Close()
+        'No final eu somo +1 para contar a última linha, que não tem a quebra de linha que é contada acima.
+        Return qtdLinhas
+    End Function
+
+    'Procura uma determinada palavra em um texto e retorna verdadeiro caso encontre
+    Public Function procurarPalavra(texto As String, texto_a_procurar As String) As Boolean
+        Dim resultado As Long
+        resultado = InStr(texto, texto_a_procurar)
+        If resultado > 0 Then
+            procurarPalavra = True
+        Else : procurarPalavra = False
+        End If
+    End Function
+
+    'Função para retornar vazio para campos textbox com data
+    Public Function retornaDataTextBox(argValor As Object) As String
+        Dim idiomaPC As String
+        Dim formato As String = ""
+        Dim dataVazia As DateTime = Nothing
+        If argValor = Nothing Then
+            argValor = dataVazia
+        End If
+        If CDate(argValor).ToString("yyyy-MM-dd HH:mm:ss") = CDate(dataVazia).ToString("yyyy-MM-dd HH:mm:ss") Then
+            Return ""
+        Else
+            'captura o idioma da maquina
+            idiomaPC = CultureInfo.CurrentCulture.Name
+            If idiomaPC = "pt-BR" Then
+                formato = "dd/MM/yyyy HH:mm:ss" 'dia/mês/ano
+            Else
+                formato = "MM/dd/yyyy HH:mm:ss" 'mês/dia/ano"
+            End If
+            Return CDate(argValor).ToString(formato)
+        End If
+    End Function
+
+    'Chamada
+    'hlp.CarregaComboBoxManualmente("FAB;INQ;Tudo", Me, Me.cFilas)
+    'função
+    'Carregamento de Combobox de forma manual
+    Public Sub carregaComboBoxManualmente(ByVal strItens As String, ByVal frm As Form, ByVal cb As ComboBox)
+        Dim itens As Object
+        itens = Split(strItens, ";")
+        'limpando o combobox para evitar duplo carregamento
+        With frm
+            With cb
+                .DataSource = Nothing
+                .Items.Clear()
+            End With
+        End With
+        'Carregando itens
+        For i = LBound(itens) To UBound(itens)
+            With frm
+                With cb
+                    .Items.Add(itens(i))
+                End With
+            End With
+        Next
+    End Sub
+
+    'matar processo do proprio aplicativo
+    Public Sub killProcesso()
+        'captura o processo do aplicativo
+        Dim proc As Process = Process.GetCurrentProcess
+        'captura o nome do processo deste aplicativo
+        Dim processo As String = proc.ProcessName.ToString
+        'percorrendo todos os processos abertos
+        For Each prog As Process In Process.GetProcesses
+            'fecha o processo deste aplicativo
+            If prog.ProcessName = processo Then
+                prog.Kill()
+            End If
+        Next
+    End Sub
+
+    'Função para limitar uma quantidade de caracteres por linha em um determinado Textbox
+    Public Sub limiteCaracterPorLinha(ByVal limite As Long, ByVal ctrl As Control)
+        Dim texto As String = ""
+        Dim tamanho As Long = 0
+        Dim nova_linha As String = ""
+        Dim temp_linha As String = ""
+        Dim delimitador As String = Replace(Space(limite), " ", "-")
+        Dim nroBloco As Integer = 0
+
+        texto = ctrl.Text.Trim
+        'remove as quebras de linhas
+        texto = texto.Replace(System.Environment.NewLine, String.Empty)
+        tamanho = Len(texto)
+        'se acima do limite
+        If tamanho > limite Then
+            'percorre toda a cadeia de caracteres uma a uma
+            For i = 1 To tamanho
+                temp_linha += Mid(texto, i, 1) 'recebe os caracteres
+                If temp_linha.Length = limite Then 'verifica se alcançou o limite
+                    nroBloco = nroBloco + 1
+                    temp_linha += "\r\n" 'inserir quebra de linha na variavel temp
+                    ''utilizar separador por blocos apenas se necessario
+                    'If nroBloco = 4 Then
+                    '    temp_linha += delimitador & "\r\n"
+                    '    nroBloco = 0
+                    'End If
+                    nova_linha += temp_linha 'salva na variavel final
+                    'formatando uma expressão regular para quebra de linha
+                    nova_linha = System.Text.RegularExpressions.Regex.Unescape(String.Format(nova_linha))
+                    temp_linha = "" 'limpa variavel temporaria para o proximo lote de caracteres
+                ElseIf i = tamanho Then
+                    nova_linha += temp_linha 'concatenar a ultima linha abaixo de 50 caracteres
+                End If
+            Next
+            ctrl.Text = nova_linha 'retorna para o textbox
+        End If
+    End Sub
+
+    Public Function formataLimiteCaracteres(nrCaracteres As Integer, valor As String) As String
+        If String.IsNullOrEmpty(valor) Then
+            Return Nothing
+        Else
+            Dim i As Long
+            'Dim novovalor As String = valor.Trim
+            Dim strRetorno As String = ""
+            For i = 1 To nrCaracteres
+                strRetorno = strRetorno & "0"
+            Next
+            Return Microsoft.VisualBasic.Right(strRetorno & valor.Trim, nrCaracteres)
+        End If
+    End Function
+
+    Public Function getCurrentMethodName() As String
+        Dim stack As New System.Diagnostics.StackFrame(1)
+        Return stack.GetMethod().Name
+    End Function
+
+    'Função para converter segundos em hora / minuto / segundos
+    Public Function converterSegundos(ByVal intSegundos As Long) As DateTime
+
+        Dim emSegundos As Long, emMinutos As Long, emHoras As Long, emDias As Long
+        Dim segundos As Long, miuntos As Long, horas As Long
+
+        emSegundos = intSegundos
+        segundos = emSegundos Mod (60)
+        emMinutos = emSegundos \ (60)
+        miuntos = emMinutos Mod (60)
+        emHoras = emMinutos \ (60)
+        horas = emHoras Mod (24)
+        emDias = emHoras \ (24)
+
+        Return Format(horas, "00") & ":" & Format(miuntos, "00") & ":" & Format(segundos, "00")
+
+    End Function
+
+    Public Function validarIdiomaPC(ByVal siglaIdioma As String) As Boolean
+
+        'IDIOMAS MAIS USADOS:
+        'PT-BR
+        'EN-US
+
+        'EXEMPLO:
+        'If Not hlp.validarIdiomaPC("PT-BR") Then Exit Sub
+
+        Dim idiomaPC As String = retornaIdiomaPC.ToLower
+
+        If Not idiomaPC = siglaIdioma.ToLower Then
+            MsgBox("O idioma para esta ação deve ser: " & siglaIdioma.ToUpper & ". " _
+                    & vbNewLine & "Feche o aplicativo, troque o idioma e tente outra vez!" _
+                    , MsgBoxStyle.Information, TITULO_ALERTA)
+            Return False
+        Else
+            Return True
+        End If
+
+    End Function
+
+    Public Function apenasNumeros(strOriginal As String) As String
+        Dim retorno As String = ""
+        If Not String.IsNullOrEmpty(strOriginal.ToString) Then
+            retorno = String.Concat(
+                        strOriginal.Where(
+                            Function(c) "0123456789".Contains(c)))
+        Else
+            retorno = ""
+        End If
+        Return retorno
+    End Function
+
+    Public Function versaoSistema() As String
+        Return Application.ProductVersion
+    End Function
+
+    Public Sub carregaDataGrid(frm As Form, dg As DataGridView, dt As DataTable)
+        Try
+            With frm
+                With dg
+                    .DataSource = dt
+                End With
+            End With
+        Catch ex As Exception
+        End Try
+    End Sub
+
+
+    ''' <summary>
+    ''' Formata uma string de data no formato Date
+    ''' Data criação/modificação: 02/01/2018
+    ''' </summary>  
+    Public Function formataStringDataDDMMYY(strData As String) As Date
+        Try
+            Dim dtFormatada As Date
+            Dim milenio As Long = 2000
+            strData = Replace(strData, "/", String.Empty)
+            dtFormatada = CDate(DateSerial(Microsoft.VisualBasic.Mid(strData, 5, 2) + milenio, Microsoft.VisualBasic.Mid(strData, 3, 2), Microsoft.VisualBasic.Mid(strData, 1, 2)))
+            Return dtFormatada
+        Catch ex As Exception
+            Return Nothing
+        End Try
+    End Function
+
+    ''' <summary>
+    ''' Formata uma string de hora no formato Datetime
+    ''' Data criação/modificação: 02/01/2018
+    ''' </summary>  
+    Public Function formataStringHoraHHMMSS(strHORA As String) As DateTime
+        Try
+            Dim milenio As Long = 2000
+            Dim nmTime As New TimeSpan(Microsoft.VisualBasic.Mid(strHORA, 1, 2), Microsoft.VisualBasic.Mid(strHORA, 3, 2), Microsoft.VisualBasic.Mid(strHORA, 5, 2))
+            Return Today.Add(nmTime).ToString("HH:mm:ss")
+        Catch ex As Exception
+            Return Nothing
+        End Try
+    End Function
+
+    ''' <summary>
+    ''' Retorna um limite de caracteres especificos de uma string
+    ''' Data criação/modificação: 02/01/2018
+    ''' </summary>  
+    Public Function retornaLimiteCaracterString(strValor As String, limite As Integer) As String
+        Try
+            Dim novoValor As String
+            novoValor = Microsoft.VisualBasic.Mid(strValor, 1, limite)
+            Return novoValor
+        Catch ex As Exception
+            Return strValor
+        End Try
+    End Function
+
+
+    ''' <summary>
+    ''' Autenticação via Active Directory
+    ''' </summary>
+    ''' <param name="User">usuario do dominio</param>
+    ''' <param name="Senha">senha do dominio</param>
+    ''' <param name="ValidaNovelRede">valida o usuário informado com usuário logado no computador, default = true</param>
+    ''' <param name="IpServer">ip do dominio, opcional ou captura automatica da propria rede, default = auto</param>
+    ''' <returns>Boolean</returns>
+    ''' 
+    Public Function autenticacaoActiveDirectory(ByVal User As String, ByVal Senha As String, Optional ByVal ValidaNovelRede As Boolean = True, Optional ByVal IpServer As String = "") As Boolean
+        Dim resultado As String = ""
+        Try
+            'ALGAR:
+            'BRA.LOCAL = 10.130.9.1
+            '------------------------------------------------------------------------
+            'verifica a necessidade de capturar automaticamente do ip dominio local
+            Dim dominio As Domain
+            Dim nomeDominio As String
+            Dim directoryEntry As DirectoryEntry
+            If String.IsNullOrEmpty(IpServer) Then
+                dominio = Domain.GetCurrentDomain()
+                nomeDominio = dominio.Name
+            Else
+                nomeDominio = IpServer.ToString
+            End If
+            '------------------------------------------------------------------------
+            directoryEntry = New DirectoryEntry("LDAP://" + nomeDominio, User, Senha)
+            resultado = directoryEntry.Name
+
+            If Not String.IsNullOrEmpty(resultado.ToString) Then
+
+                If ValidaNovelRede Then
+                    'Verifica se o usuário autenticado é o mesmo que esta logado no PC
+                    If Environment.UserName.ToString.ToLower = User.ToString.ToLower Then
+                        'MsgBox("Usuário Autenticado!", vbCritical)
+                        Return True
+                    Else
+                        MsgBox("Erro de Autenticação!" & vbNewLine & "O usuário logado neste computador é diferente do informado no login.", vbCritical, TITULO_ALERTA)
+                        Return False
+                    End If
+                Else
+                    Return True 'autenticado
+                End If
+
+            Else
+                    MsgBox("Erro de Autenticação!", vbCritical, TITULO_ALERTA)
+                Return False
+            End If
+        Catch ex As Exception
+            MsgBox("Erro de Autenticação!", vbCritical, TITULO_ALERTA)
+            Return False
+        End Try
+    End Function
+
+End Class

@@ -1,0 +1,11 @@
+C:\Users\wesleyel\Documents\SVN\seguranca\Uteis\bin\Debug\Utils.dll
+C:\Users\wesleyel\Documents\SVN\seguranca\Uteis\bin\Debug\Utils.pdb
+C:\Users\wesleyel\Documents\SVN\seguranca\Uteis\bin\Debug\Utils.xml
+C:\Users\wesleyel\Documents\SVN\seguranca\Uteis\obj\Debug\Interop.ADODB.dll
+C:\Users\wesleyel\Documents\SVN\seguranca\Uteis\obj\Debug\Utils.vbproj.ResolveComReference.cache
+C:\Users\wesleyel\Documents\SVN\seguranca\Uteis\obj\Debug\Utils.Resources.resources
+C:\Users\wesleyel\Documents\SVN\seguranca\Uteis\obj\Debug\Utils.vbproj.GenerateResource.cache
+C:\Users\wesleyel\Documents\SVN\seguranca\Uteis\obj\Debug\Utils.vbproj.CoreCompileInputs.cache
+C:\Users\wesleyel\Documents\SVN\seguranca\Uteis\obj\Debug\Utils.dll
+C:\Users\wesleyel\Documents\SVN\seguranca\Uteis\obj\Debug\Utils.xml
+C:\Users\wesleyel\Documents\SVN\seguranca\Uteis\obj\Debug\Utils.pdb

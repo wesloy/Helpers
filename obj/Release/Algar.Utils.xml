@@ -1,0 +1,62 @@
+﻿<?xml version="1.0"?>
+<doc>
+<assembly>
+<name>
+Algar.Utils
+</name>
+</assembly>
+<members>
+<member name="T:Algar.Utils.My.Resources.Resources">
+<summary>
+  A strongly-typed resource class, for looking up localized strings, etc.
+</summary>
+</member>
+<member name="P:Algar.Utils.My.Resources.Resources.ResourceManager">
+<summary>
+  Returns the cached ResourceManager instance used by this class.
+</summary>
+</member>
+<member name="P:Algar.Utils.My.Resources.Resources.Culture">
+<summary>
+  Overrides the current thread's CurrentUICulture property for all
+  resource lookups using this strongly typed resource class.
+</summary>
+</member>
+<member name="M:Algar.Utils.Helpers.formataStringDataDDMMYY(System.String)">
+ <summary>
+ Formata uma string de data no formato Date
+ Data criação/modificação: 02/01/2018
+ </summary>  
+</member>
+<member name="M:Algar.Utils.Helpers.formataStringHoraHHMMSS(System.String)">
+ <summary>
+ Formata uma string de hora no formato Datetime
+ Data criação/modificação: 02/01/2018
+ </summary>  
+</member>
+<member name="M:Algar.Utils.Helpers.retornaLimiteCaracterString(System.String,System.Int32)">
+ <summary>
+ Retorna um limite de caracteres especificos de uma string
+ Data criação/modificação: 02/01/2018
+ </summary>  
+</member>
+<member name="M:Algar.Utils.Helpers.autenticacaoActiveDirectory(System.String,System.String,System.Boolean,System.String)">
+ <summary>
+ Autenticação via Active Directory
+ </summary>
+ <param name="User">usuario do dominio</param>
+ <param name="Senha">senha do dominio</param>
+ <param name="ValidaNovelRede">valida o usuário informado com usuário logado no computador, default = true</param>
+ <param name="IpServer">ip do dominio, opcional ou captura automatica da propria rede, default = auto</param>
+ <returns>Boolean</returns>
+</member>
+<member name="M:Algar.Utils.Helpers.TextBoxMoeda(System.Windows.Forms.TextBox)">
+ <summary>
+ Método que formata para moeda o conteúdo de um TextBox
+ Para fazer uma chamada ao método TextBoxMoeda da classe Utils, 
+ adiciona a linha abaixo no evento TextChanged do controle TextBox.
+ </summary>
+ <param name="txt">Controle a ser formatado</param>
+</member>
+</members>
+</doc>
